@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 
 namespace GildedRose.Console
 {
@@ -36,80 +37,28 @@ namespace GildedRose.Console
 
         public void UpdateQuality()
         {
-            for (var i = 0; i < Items.Count; i++)
+            foreach (var updateItem in Items.Select(GetUpdateItem))
             {
-                if (Items[i].Name != "Aged Brie" && Items[i].Name != "Backstage passes to a TAFKAL80ETC concert")
-                {
-                    if (Items[i].Quality > 0)
-                    {
-                        if (Items[i].Name != "Sulfuras, Hand of Ragnaros")
-                        {
-                            Items[i].Quality = Items[i].Quality - 1;
-                        }
-                    }
-                }
-                else
-                {
-                    if (Items[i].Quality < 50)
-                    {
-                        Items[i].Quality = Items[i].Quality + 1;
-
-                        if (Items[i].Name == "Backstage passes to a TAFKAL80ETC concert")
-                        {
-                            if (Items[i].SellIn < 11)
-                            {
-                                if (Items[i].Quality < 50)
-                                {
-                                    Items[i].Quality = Items[i].Quality + 1;
-                                }
-                            }
-
-                            if (Items[i].SellIn < 6)
-                            {
-                                if (Items[i].Quality < 50)
-                                {
-                                    Items[i].Quality = Items[i].Quality + 1;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if (Items[i].Name != "Sulfuras, Hand of Ragnaros")
-                {
-                    Items[i].SellIn = Items[i].SellIn - 1;
-                }
-
-                if (Items[i].SellIn < 0)
-                {
-                    if (Items[i].Name != "Aged Brie")
-                    {
-                        if (Items[i].Name != "Backstage passes to a TAFKAL80ETC concert")
-                        {
-                            if (Items[i].Quality > 0)
-                            {
-                                if (Items[i].Name != "Sulfuras, Hand of Ragnaros")
-                                {
-                                    Items[i].Quality = Items[i].Quality - 1;
-                                }
-                            }
-                        }
-                        else
-                        {
-                            Items[i].Quality = Items[i].Quality - Items[i].Quality;
-                        }
-                    }
-                    else
-                    {
-                        if (Items[i].Quality < 50)
-                        {
-                            Items[i].Quality = Items[i].Quality + 1;
-                        }
-                    }
-                }
+                updateItem.Update();
             }
         }
 
+        private UpdateItem GetUpdateItem(Item item)
+        {
+            if (item.Name.StartsWith("Backstage passes"))// I've done this using a StartsWith on the basis that there might be other concerts and therefore it removed the need to add more spacific names of items that would need maintenance
+            {
+                return new BackstagePass(item);
+            }
+            if (item.Name == "Sulfuras, Hand of Ragnaros")
+            {
+                return new LegendaryItem(item);
+            }
+            if (item.Name == "Aged Brie")
+            {
+                return new MaturingItem(item);
+            }
+            return new UpdateItem(item);
+        }
     }
 
     public class Item
@@ -121,4 +70,116 @@ namespace GildedRose.Console
         public int Quality { get; set; }
     }
 
+    public class UpdateItem
+    {
+        protected int QualityDelta { get; set; } = 1;
+
+        public UpdateItem(Item item)
+        {
+            Item = item;
+        }
+
+        public Item Item { get; }
+
+        public virtual void Update()
+        {
+            UpdateQuality();
+            UpdateSellIn();
+        }
+
+        protected virtual void UpdateQuality()
+        {
+            UpdateQuality(Item.SellIn <= 0 ? QualityDelta * 2 : QualityDelta);
+        }
+
+        protected virtual void UpdateQuality(int delta)
+        {
+            if (Item.Quality < delta)
+            {
+                Item.Quality = 0;
+            }
+            else
+            {
+                Item.Quality -= delta;
+            }
+        }
+
+        private void UpdateSellIn()
+        {
+            Item.SellIn--;
+        }
+    }
+
+    /// <summary>
+    /// Maturing Items get better with age. 
+    /// </summary>
+    public class MaturingItem : UpdateItem
+    {
+        public MaturingItem(Item item) : base(item)
+        {
+
+        }
+
+        protected override void UpdateQuality(int delta)
+        {
+            if (Item.Quality + delta >= 50)
+            {
+                Item.Quality = 50;
+            }
+            else
+            {
+                Item.Quality += delta;
+            }
+        }
+    }
+
+    /// <summary>
+    /// These items do not degrade and do not need to be sold therefore the Update method does nothing
+    /// </summary>
+    public class LegendaryItem : UpdateItem
+    {
+        public LegendaryItem(Item item) : base(item)
+        {
+            QualityDelta = 0;
+        }
+
+        public override void Update()
+        {
+            // do nothing for Legendary Items
+        }
+    }
+
+    public class BackstagePass : MaturingItem
+    {
+        public BackstagePass(Item item) : base(item)
+        {
+
+        }
+
+        protected override void UpdateQuality()
+        {
+            //We could use a state pattern here but for now I have left it as a series of if statements
+
+            if (Item.SellIn <= 0)
+            {
+                Item.Quality = 0;
+                return;
+            }
+
+            //could do this a boundary check but would then also need to do it in the constructor to ensure it's initalise correctly.
+            if (Item.SellIn <= 5)
+            {
+                QualityDelta = 3;
+            }
+            else if (Item.SellIn <= 10)
+            {
+                QualityDelta = 2;
+            }
+            else
+            {
+                QualityDelta = 1;
+            }
+            base.UpdateQuality();
+        }
+    }
 }
