@@ -86,5 +86,20 @@ namespace GildedRose.Tests
         }
         //"Backstage passes", like aged brie, increases in Quality as it's SellIn value approaches; Quality increases by 2 when there are 10 days or less and by 3 when there are 5 days or less but Quality drops to 0 after the concert
 
+        //These tests initally fail as there is no handlig currently for Conjured Items
+        [Theory]
+        //"Conjured" items degrade in Quality twice as fast as normal items
+        [InlineData("Conjured Mana Cake", 3, 6, 2, 4)]
+        //Once the sell by date has passed, Quality degrades twice as fast
+        [InlineData("Conjured Mana Cake", 1, 6, 0, 4)]
+        [InlineData("Conjured Mana Cake", 0, 6, -1, 2)]
+        //The Quality of an item is never negative
+        [InlineData("Conjured Mana Cake", 2, 2, 1, 0)]
+        [InlineData("Conjured Mana Cake", 2, 1, 1, 0)]
+        [InlineData("Conjured Mana Cake", 2, 0, 1, 0)]
+        public void ConjuredItemTest(string itemName, int sellInStart, int qualityStart, int expectedSellIn, int expectedQuality)
+        {
+            TestScenario(itemName, sellInStart, qualityStart, expectedSellIn, expectedQuality);
+        }
     }
 }

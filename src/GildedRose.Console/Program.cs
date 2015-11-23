@@ -45,6 +45,10 @@ namespace GildedRose.Console
 
         private UpdateItem GetUpdateItem(Item item)
         {
+            if (item.Name.StartsWith("Conjured"))// The spec for the new functionality mentions jsut Conjured items so we can assume that there may be types other than 'Conjured Mana Cake'. If I was doing this for real I would seek clarification on this aspect. 
+            {
+                return new ConjuredItem(item);
+            }
             if (item.Name.StartsWith("Backstage passes"))// I've done this using a StartsWith on the basis that there might be other concerts and therefore it removed the need to add more spacific names of items that would need maintenance
             {
                 return new BackstagePass(item);
@@ -180,6 +184,14 @@ namespace GildedRose.Console
                 QualityDelta = 1;
             }
             base.UpdateQuality();
+        }
+    }
+
+    public class ConjuredItem : UpdateItem
+    {
+        public ConjuredItem(Item item) : base(item)
+        {
+            QualityDelta = 2;
         }
     }
 }
