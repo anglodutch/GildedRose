@@ -37,13 +37,37 @@ namespace GildedRose.Console
 
         public void UpdateQuality()
         {
-            foreach (var updateItem in Items.Select(GetUpdateItem))
+            IUpdateItemFactory itemFactory = new SimpleUpdateItemFactory();
+            foreach (var updateItem in Items.Select(itemFactory.GetUpdateItem))
             {
                 updateItem.Update();
             }
         }
+    }
 
-        private UpdateItem GetUpdateItem(Item item)
+    public class Item
+    {
+        public string Name { get; set; }
+
+        public int SellIn { get; set; }
+
+        public int Quality { get; set; }
+    }
+
+    public interface IUpdateItemFactory
+    {
+        UpdateItem GetUpdateItem(Item item);
+    }
+
+
+
+    /// <summary>
+    /// This simple factory would require more maintenance if the were to be more types added in the future
+    /// However it is quite simple.
+    /// </summary>
+    public class SimpleUpdateItemFactory : IUpdateItemFactory
+    {
+        public UpdateItem GetUpdateItem(Item item)
         {
             if (item.Name.StartsWith("Conjured"))// The spec for the new functionality mentions jsut Conjured items so we can assume that there may be types other than 'Conjured Mana Cake'. If I was doing this for real I would seek clarification on this aspect. 
             {
@@ -65,14 +89,6 @@ namespace GildedRose.Console
         }
     }
 
-    public class Item
-    {
-        public string Name { get; set; }
-
-        public int SellIn { get; set; }
-
-        public int Quality { get; set; }
-    }
 
     public class UpdateItem
     {
