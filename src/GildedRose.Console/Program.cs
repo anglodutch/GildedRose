@@ -1,5 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 
 namespace GildedRose.Console
 {
@@ -37,7 +39,7 @@ namespace GildedRose.Console
 
         public void UpdateQuality()
         {
-            IUpdateItemFactory itemFactory = new SimpleUpdateItemFactory();
+            IUpdateItemFactory itemFactory = new DynamicUpdateItemFactory();
             foreach (var updateItem in Items.Select(itemFactory.GetUpdateItem))
             {
                 updateItem.Update();
@@ -89,6 +91,71 @@ namespace GildedRose.Console
         }
     }
 
+    /// <summary>
+	/// If required we could use this Factory which will dynamically load special Items and would therefore allow the solution to be 
+	/// extensible based ont
+	/// </summary>
+	public class DynamicUpdateItemFactory : IUpdateItemFactory
+    {
+        private readonly List<Tuple<List<string>, Type>> _specialTypes = new List<Tuple<List<string>, Type>>();
+
+        public DynamicUpdateItemFactory()
+        {
+            LoadTypes();
+        }
+
+        private void LoadTypes()
+        {
+            foreach (var type in GetType().Assembly.CreatableTypes<UpdateItem>())
+            {
+                var attribute = type.GetCustomAttributes<SpecialUpdateItemAttribute>().ToList();
+                if (attribute.Any())
+                {
+                    _specialTypes.Add(new Tuple<List<string>, Type>(attribute.Select(a => a.Prefix).ToList(), type));
+                }
+            }
+        }
+
+        public UpdateItem GetUpdateItem(Item item)
+        {
+            foreach (var specialType in _specialTypes)
+            {
+                if (specialType.Item1.Any(prefix => item.Name.StartsWith(prefix)))
+                {
+                    return Activator.CreateInstance(specialType.Item2, item) as UpdateItem;
+                }
+            }
+            return new UpdateItem(item);
+        }
+    }
+
+    public static class ExtensionMethods
+    {
+        public static IEnumerable<Type> CreatableTypes<T>(this Assembly assembly)
+        {
+            try
+            {
+                return assembly.DefinedTypes.Select(t => t.AsType())
+                .Select(t => t.GetTypeInfo())
+                .Where(t => !t.IsAbstract && t.DeclaredConstructors.Any(c => !c.IsStatic && c.IsPublic) && t.IsSubclassOf(typeof(T))).Select(t => t.AsType());
+            }
+            catch (ReflectionTypeLoadException)
+            {
+                return new Type[0];
+            }
+        }
+    }
+
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
+    public class SpecialUpdateItemAttribute : Attribute
+    {
+        public SpecialUpdateItemAttribute(string prefix)
+        {
+            Prefix = prefix;
+        }
+
+        public string Prefix { get; }
+    }
 
     public class UpdateItem
     {
@@ -133,6 +200,7 @@ namespace GildedRose.Console
     /// <summary>
     /// Maturing Items get better with age. 
     /// </summary>
+	[SpecialUpdateItem("Aged Brie")]
     public class MaturingItem : UpdateItem
     {
         public MaturingItem(Item item) : base(item)
@@ -156,6 +224,7 @@ namespace GildedRose.Console
     /// <summary>
     /// These items do not degrade and do not need to be sold therefore the Update method does nothing
     /// </summary>
+	[SpecialUpdateItem("Sulfuras, Hand of Ragnaros")]
     public class LegendaryItem : UpdateItem
     {
         public LegendaryItem(Item item) : base(item)
@@ -169,6 +238,7 @@ namespace GildedRose.Console
         }
     }
 
+	[SpecialUpdateItem("Backstage passes")]
     public class BackstagePass : MaturingItem
     {
         public BackstagePass(Item item) : base(item)
@@ -203,6 +273,7 @@ namespace GildedRose.Console
         }
     }
 
+	[SpecialUpdateItem("Conjured")]
     public class ConjuredItem : UpdateItem
     {
         public ConjuredItem(Item item) : base(item)

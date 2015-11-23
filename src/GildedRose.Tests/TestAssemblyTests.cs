@@ -120,5 +120,23 @@ namespace GildedRose.Tests
 
             Assert.IsType(expectedType, updateItem);
         }
+
+        [Theory]
+        [InlineData("+5 Dexterity Vest", typeof(UpdateItem))]
+        [InlineData("Aged Brie", typeof(MaturingItem))]
+        [InlineData("Elixir of the Mongoose", typeof(UpdateItem))]
+        [InlineData("Sulfuras, Hand of Ragnaros", typeof(LegendaryItem))]
+        [InlineData("Backstage passes to a TAFKAL80ETC concert", typeof(BackstagePass))]
+        [InlineData("Backstage passes to a Queen concert", typeof(BackstagePass))]
+        [InlineData("Conjured Mana Cake", typeof(ConjuredItem))]
+        [InlineData("Conjured SPAM", typeof(ConjuredItem))]
+        public void DynamicFactoryTests(string name, Type expectedType)
+        {
+            IUpdateItemFactory factory = new DynamicUpdateItemFactory();
+
+            var updateItem = factory.GetUpdateItem(new Item { Name = name });
+
+            Assert.IsType(expectedType, updateItem);
+        }
     }
 }
