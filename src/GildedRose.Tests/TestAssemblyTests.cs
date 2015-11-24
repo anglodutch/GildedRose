@@ -139,4 +139,151 @@ namespace GildedRose.Tests
             Assert.IsType(expectedType, updateItem);
         }
     }
+
+    public class ItemTestBase
+    {
+        protected void TestItem(UpdateItem updateItem, int expectedSellIn, int expectedQuality)
+        {
+            updateItem.Update();
+
+            Assert.Equal(expectedSellIn, updateItem.Item.SellIn);
+            Assert.Equal(expectedQuality, updateItem.Item.Quality);
+        }
+    }
+
+    public class UpdateItemTest : ItemTestBase
+    {
+        [Theory]
+        [InlineData("+5 Dexterity Vest", 10, 20, 9, 19)]
+
+        public void NotingChangesTest(string itemName, int sellInStart, int qualityStart, int expectedSellIn, int expectedQuality)
+        {
+            TestItem(new UpdateItem(new Item { Name = itemName, SellIn = sellInStart, Quality = qualityStart }), expectedSellIn, expectedQuality);
+        }
+
+        [Theory]
+        //Once the sell by date has passed, Quality degrades twice as fast
+        [InlineData("+5 Dexterity Vest", 1, 20, 0, 19)]
+        [InlineData("Elixir of the Mongoose", 1, 7, 0, 6)]
+        [InlineData("+5 Dexterity Vest", 0, 20, -1, 18)]
+        [InlineData("Elixir of the Mongoose", 0, 7, -1, 5)]
+        public void SelinZeroDegradeTest(string itemName, int sellInStart, int qualityStart, int expectedSellIn, int expectedQuality)
+        {
+            TestItem(new UpdateItem(new Item { Name = itemName, SellIn = sellInStart, Quality = qualityStart }), expectedSellIn, expectedQuality);
+        }
+        [Theory]
+        //The Quality of an item is never negative
+        [InlineData("+5 Dexterity Vest", 2, 1, 1, 0)]
+        [InlineData("Elixir of the Mongoose", 2, 1, 1, 0)]
+        [InlineData("+5 Dexterity Vest", 2, 0, 1, 0)]
+        [InlineData("Elixir of the Mongoose", 2, 0, 1, 0)]
+        public void QualityIsNotNegative(string itemName, int sellInStart, int qualityStart, int expectedSellIn, int expectedQuality)
+        {
+            TestItem(new UpdateItem(new Item { Name = itemName, SellIn = sellInStart, Quality = qualityStart }), expectedSellIn, expectedQuality);
+        }
+    }
+
+    public class LegendaryItemTest : ItemTestBase
+    {
+        [Theory]
+        [InlineData("Sulfuras, Hand of Ragnaros", 0, 80, 0, 80)]
+        [InlineData("Sulfuras, Hand of Ragnaros", 5, 80, 5, 80)]
+        public void NotingChangesTest(string itemName, int sellInStart, int qualityStart, int expectedSellIn, int expectedQuality)
+        {
+            TestItem(new LegendaryItem(new Item { Name = itemName, SellIn = sellInStart, Quality = qualityStart }), expectedSellIn, expectedQuality);
+        }
+    }
+
+    public class ConjuredItemTest : ItemTestBase
+    {
+        [Theory]
+        //The Quality of an item is never negative
+        [InlineData("Conjured Mana Cake", 2, 2, 1, 0)]
+        [InlineData("Conjured Mana Cake", 2, 1, 1, 0)]
+        [InlineData("Conjured Mana Cake", 2, 0, 1, 0)]
+        public void QualityNotNegativeTest(string itemName, int sellInStart, int qualityStart, int expectedSellIn, int expectedQuality)
+        {
+            TestItem(new ConjuredItem(new Item { Name = itemName, SellIn = sellInStart, Quality = qualityStart }), expectedSellIn, expectedQuality);
+        }
+        [Theory]
+        //"Conjured" items degrade in Quality twice as fast as normal items
+        [InlineData("Conjured Mana Cake", 3, 6, 2, 4)]
+        public void DegradeTest(string itemName, int sellInStart, int qualityStart, int expectedSellIn, int expectedQuality)
+        {
+            TestItem(new ConjuredItem(new Item { Name = itemName, SellIn = sellInStart, Quality = qualityStart }), expectedSellIn, expectedQuality);
+        }
+        [Theory]
+        //Once the sell by date has passed, Quality degrades twice as fast
+        [InlineData("Conjured Mana Cake", 1, 6, 0, 4)]
+        [InlineData("Conjured Mana Cake", 0, 6, -1, 2)]
+        public void SelinZeroDegradeTest(string itemName, int sellInStart, int qualityStart, int expectedSellIn, int expectedQuality)
+        {
+            TestItem(new ConjuredItem(new Item { Name = itemName, SellIn = sellInStart, Quality = qualityStart }), expectedSellIn, expectedQuality);
+        }
+    }
+
+    public class BackstagePassItemTest : ItemTestBase
+    {
+        [Theory]
+        // baskstage passes, test they never go above 50 and check that the change in incriment is applied in the correct places
+        [InlineData("Backstage passes to a TAFKAL80ETC concert", 11, 49, 10, 50)]
+        [InlineData("Backstage passes to a TAFKAL80ETC concert", 11, 50, 10, 50)]
+        [InlineData("Backstage passes to a TAFKAL80ETC concert", 10, 49, 9, 50)]
+        [InlineData("Backstage passes to a TAFKAL80ETC concert", 10, 48, 9, 50)]
+        [InlineData("Backstage passes to a TAFKAL80ETC concert", 10, 50, 9, 50)]
+        [InlineData("Backstage passes to a TAFKAL80ETC concert", 5, 50, 4, 50)]
+        [InlineData("Backstage passes to a TAFKAL80ETC concert", 5, 49, 4, 50)]
+        [InlineData("Backstage passes to a TAFKAL80ETC concert", 5, 48, 4, 50)]
+        [InlineData("Backstage passes to a TAFKAL80ETC concert", 5, 47, 4, 50)]
+        public void QualityNotAboveFiftyTest(string itemName, int sellInStart, int qualityStart, int expectedSellIn, int expectedQuality)
+        {
+            TestItem(new BackstagePass(new Item { Name = itemName, SellIn = sellInStart, Quality = qualityStart }), expectedSellIn, expectedQuality);
+        }
+        [Theory]
+        [InlineData("Backstage passes to a TAFKAL80ETC concert", 1, 5, 0, 8)]
+        [InlineData("Backstage passes to a TAFKAL80ETC concert", 0, 5, -1, 0)]
+        public void QualityToZeroOnExpiry(string itemName, int sellInStart, int qualityStart, int expectedSellIn, int expectedQuality)
+        {
+            TestItem(new BackstagePass(new Item { Name = itemName, SellIn = sellInStart, Quality = qualityStart }), expectedSellIn, expectedQuality);
+        }
+        [Theory]
+        [InlineData("Backstage passes to a TAFKAL80ETC concert", 11, 5, 10, 6)]
+        [InlineData("Backstage passes to a TAFKAL80ETC concert", 10, 5, 9, 7)]
+        [InlineData("Backstage passes to a TAFKAL80ETC concert", 6, 5, 5, 7)]
+        [InlineData("Backstage passes to a TAFKAL80ETC concert", 5, 5, 4, 8)]
+        public void QualityIncreaseMoreRapidlyAsSellinDecrease(string itemName, int sellInStart, int qualityStart, int expectedSellIn, int expectedQuality)
+        {
+            TestItem(new BackstagePass(new Item { Name = itemName, SellIn = sellInStart, Quality = qualityStart }), expectedSellIn, expectedQuality);
+        }
+    }
+
+    public class MaturingtemTest : ItemTestBase
+    {
+        [Theory]
+        //The Quality of an item is never more than 50
+        [InlineData("Aged Brie", 2, 49, 1, 50)]
+        [InlineData("Aged Brie", 2, 50, 1, 50)]
+        [InlineData("Aged Brie", 1, 25, 0, 26)]
+        [InlineData("Aged Brie", 0, 25, -1, 27)]
+        public void QualityNotAboveFiftyTest(string itemName, int sellInStart, int qualityStart, int expectedSellIn, int expectedQuality)
+        {
+            TestItem(new MaturingItem(new Item { Name = itemName, SellIn = sellInStart, Quality = qualityStart }), expectedSellIn, expectedQuality);
+        }
+
+        [Theory]
+        [InlineData("Aged Brie", 1, 25, 0, 26)]
+        [InlineData("Aged Brie", 0, 25, -1, 27)]
+        public void QualityIncreasesMoreRapidlyAfterSellinTest(string itemName, int sellInStart, int qualityStart, int expectedSellIn, int expectedQuality)
+        {
+            TestItem(new MaturingItem(new Item { Name = itemName, SellIn = sellInStart, Quality = qualityStart }), expectedSellIn, expectedQuality);
+        }
+
+        [Theory]
+        [InlineData("Aged Brie", 2, 0, 1, 1)]
+        [InlineData("Aged Brie", 3, 0, 2, 1)]
+        public void QualityIncreasesTest(string itemName, int sellInStart, int qualityStart, int expectedSellIn, int expectedQuality)
+        {
+            TestItem(new MaturingItem(new Item { Name = itemName, SellIn = sellInStart, Quality = qualityStart }), expectedSellIn, expectedQuality);
+        }
+    }
 }
